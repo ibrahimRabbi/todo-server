@@ -18,45 +18,68 @@ const client = new MongoClient(uri, {
 });
 
 const run = async () => {
-  // await client.connect();
+  await client.connect();
   try {
-    const db = client.db('todo');
-    const taskCollection = db.collection('tasks');
+    const todoCollaction = client.db('todoApp').collection('todos');
 
-    // app.get('/tasks', async (req, res) => {
-    //   const cursor = taskCollection.find({});
-    //   const tasks = await cursor.toArray();
-    //   res.send({ status: true, data: tasks });
-    // });
 
     app.get('/tasks', async (req, res) => {
-      let query = {};
-      if (req.query.priority) {
-        query.priority = req.query.priority;
+      let query = {}
+      let sorting = {}
+      console.log(req.query.priority)
+      // if (req.query.priority) {
+      //   query = { priority: { $regex: req.query.priority, $options: 'i' } }
+      // }
+
+      const sortingValue = {
+        High: -1,
+        Medium: -1,
+        Low: 1
       }
-      const cursor = taskCollection.find(query);
-      const tasks = await cursor.toArray();
+
+      for (const iterator of Object.keys(sortingValue)) {
+        if (iterator === req.query.priority) {
+          sorting = { priorityCode: sortingValue[req.query.priority] }
+        }
+      }
+
+       
+      const tasks = await todoCollaction.find(query).sort(sorting).toArray();
       res.send({ status: true, data: tasks });
     });
 
+
     app.post('/task', async (req, res) => {
-      const task = req.body;
-      const result = await taskCollection.insertOne(task);
+
+      let data = req.body
+      const priorityCodes = {
+        High: 3,
+        Medium: 2,
+        Low:1
+      }
+
+      for (const iterator of Object.keys(priorityCodes)) {
+        if (iterator === req.body.priority) {
+          data = { ...req.body, priorityCode: priorityCodes[req.body.priority]}
+        }
+      }
+
+      const result = await todoCollaction.insertOne(data);
       res.send(result);
     });
 
     app.get('/task/:id', async (req, res) => {
       const id = req.params.id;
-      const result = await taskCollection.findOne({ _id: ObjectId(id) });
+      const result = await todoCollaction.findOne({ _id: ObjectId(id) });
       // console.log(result);
       res.send(result);
     });
 
+
     app.delete('/task/:id', async (req, res) => {
       const id = req.params.id;
-      const result = await taskCollection.deleteOne({ _id: ObjectId(id) });
-      // console.log(result);
-      res.send(result);
+      const result = await todoCollaction.deleteOne({ _id: ObjectId(id) });
+      // res.send(result);
     });
 
     // status update
@@ -74,7 +97,7 @@ const run = async () => {
         },
       };
       const options = { upsert: true };
-      const result = await taskCollection.updateOne(filter, updateDoc, options);
+      const result = await todoCollaction.updateOne(filter, updateDoc, options);
       res.json(result);
     });
   } finally {
